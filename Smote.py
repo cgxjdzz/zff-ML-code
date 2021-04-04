@@ -62,11 +62,11 @@ def Smote(feature,y,zero_strategy,one_strategy,seed):
         random.seed(seed)
         #重设一下seed，要不都重复了，或者可以直接整个函数，有点麻烦这样
         New=(Nbr-X0_val[i0])*random.random()+X0_val[i0]
-        New=pd.DataFrame(data=New)
-        Try_data=feature.append(New.T,ignore_index=True)
+        New=pd.DataFrame(data=[New],columns=feature.columns)
+        Try_data=feature.append(New,ignore_index=True)
         #将新建的加入末尾，并再次寻找最近点
         Try_nbrs = NearestNeighbors(n_neighbors=4, algorithm='ball_tree').fit(Try_data)
-        Try_distances,Try_indices=Try_nbrs.kneighbors(New.T)
+        Try_distances,Try_indices=Try_nbrs.kneighbors(New)
 
 
         temp = 0
@@ -77,7 +77,7 @@ def Smote(feature,y,zero_strategy,one_strategy,seed):
                 temp+=1
 
         if temp<3:
-            X0_new= X0_new.append(New.T,ignore_index=True)
+            X0_new= X0_new.append(New,ignore_index=True)
 
 
 
@@ -86,7 +86,7 @@ def Smote(feature,y,zero_strategy,one_strategy,seed):
 
     #由于太菜就把这玩意再抄一遍，但如果考虑降低代码重复率的话，可以把这一堆写成函数
     X1_val = X0.values
-    nbrs = NearestNeighbors(n_neighbors=k0, algorithm='ball_tree').fit(X1_val)
+    nbrs = NearestNeighbors(n_neighbors=k1, algorithm='ball_tree').fit(X1_val)
     distances, indices = nbrs.kneighbors(X1_val)
     # indices 是二维数组，第n行为第n特征的临近点，但indices[n][0]固定为n，可以忽略
 
@@ -110,11 +110,11 @@ def Smote(feature,y,zero_strategy,one_strategy,seed):
         random.seed(seed)
         # 重设一下seed，要不都重复了，或者可以直接整个函数，有点麻烦这样
         New = (Nbr - X0_val[i0]) * random.random() + X0_val[i0]
-        New = pd.DataFrame(data=New)
-        Try_data = feature.append(New.T, ignore_index=True)
+        New = pd.DataFrame(data=[New],columns=feature.columns)
+        Try_data = feature.append(New, ignore_index=True)
         # 将新建的加入末尾，并再次寻找最近点
         Try_nbrs = NearestNeighbors(n_neighbors=4, algorithm='ball_tree').fit(Try_data)
-        Try_distances, Try_indices = Try_nbrs.kneighbors(New.T)
+        Try_distances, Try_indices = Try_nbrs.kneighbors(New)
 
         temp = 0
         # 这个数一下他邻近和他不同的点
@@ -124,9 +124,7 @@ def Smote(feature,y,zero_strategy,one_strategy,seed):
                 temp += 1
 
         if temp < 3:
-            X1_new = X1_new.append(New.T, ignore_index=True)
-
-
+            X1_new = X1_new.append(New, ignore_index=True)
 
 
 
