@@ -1,1 +1,130 @@
+import pandas as pd
+import numpy as np
+import warnings
+from sklearn.neighbors import NearestNeighbors
+import random
+import numpy as np
+from math import floor
+from sympy import *
+from matplotlib import pyplot as plt
+import math
 
+def CostFunction(train_X,train_y,theta,N,Alpha):
+    J_theta=np.dot((np.dot(train_X,theta.T)-train_y).T,(np.dot(train_X,theta.T)-train_y))/2/N+np.linalg.norm(theta, ord=1, axis=None, keepdims=False)*Alpha
+    return J_theta
+
+def FindMin(i,train_X,train_y,theta,N,Alpha):
+    #试图用sympy求解每此坐标轴下降的最小值
+    z=symbols('z')
+    theta_norm=np.linalg.norm(theta, ord=1, axis=None, keepdims=False)-abs(theta[i])
+    theta=Matrix(theta)
+    train_X=Matrix(train_X)
+    train_y=Matrix(train_y)
+    theta[i] = z
+    f=((train_X*theta-train_y).T*(train_X*theta-train_y))[0]/2/N+Alpha*z
+    diff_f=diff(f,z)
+    Min=solve([diff_f,z>0],z)
+    if solve([diff_f,z>0],z)==False:
+        k=((train_X*theta-train_y).T*(train_X*theta-train_y))[0]/2/N-Alpha*z
+        diff_k = diff(k, z)
+        Min=solve([diff_k,z<0],z)
+    ##如果是false就说明无解
+    return Min
+
+def Finddiff(i,train_X,train_y,theta,N,Alpha,z0):
+    z = symbols('z')
+    theta = Matrix(theta)
+    train_X = Matrix(train_X)
+    train_y = Matrix(train_y)
+    theta[i] = z
+    f=((train_X*theta-train_y).T*(train_X*theta-train_y))[0]/2/N
+    diff_f=diff(f,z)
+    return(diff_f.subs(z, z0))
+
+
+def lasso(train_data,Alpha):
+    train_data=train_data.values
+    #训练数据转array
+    train_X=train_data[:,:-1]
+    train_y=train_data[:,-1]
+    N=train_data.shape[0]
+    #样本数量，之后算costfuc时要用
+    theta= np.ones(train_X.shape[1],dtype='float')
+    #theta初始值怎么找，好像没有找到相关的内容？？？？
+
+    k=0#这个记一下迭代次数
+    while 1:
+
+        for i in range(train_X.shape[1]):
+            J_theta = CostFunction(train_X, train_y, theta, N, Alpha)
+            #FindMin(i,train_X,train_y,theta,N,Alpha)
+            #想直接解方程解出最小值，但失败了，sympy好像并不能解决绝对值函数
+
+            #dtheta_i=0.1*Finddiff(i,train_X,train_y,theta,N,Alpha,theta[i])
+            #步长用导数试试，没有找到相关资料#导数好慢，还是算了吧，sympy根本不适用啊
+            theta_step = np.array(theta)
+            theta_step[i] = theta[i]*1.01
+            dtheta_i=(CostFunction(train_X, train_y, theta_step, N, Alpha)-J_theta)/0.01/theta[i]
+            theta_plus=np.array(theta)
+            theta_minus=np.array(theta)
+            theta_plus[i]=theta_plus[i]+dtheta_i
+            theta_minus[i]=theta_minus[i]-dtheta_i
+            J_theta_plus=CostFunction(train_X, train_y, theta_plus, N, Alpha)
+            J_theta_minus=CostFunction(train_X, train_y, theta_minus, N, Alpha)
+            theta_change=0
+            if J_theta_minus<J_theta:
+                theta_change=theta_minus[i]
+            if J_theta_plus<J_theta and J_theta_plus<J_theta_minus:
+                theta_change=theta_plus[i]
+            theta[i]=theta_change
+            #对每个参数依次进行下降
+        k+=1
+        if k>100:
+            print(CostFunction(train_X, train_y, theta, N, Alpha))
+            break
+    return theta
+
+
+
+
+def LASSOCV(X,y,alpha,K):
+    #X为特征的Dataframe，y为标签的Dataframe
+    #alpha为列表待选的alpha值，K为常数K-fold
+    #先对alpha进行遍历
+    data=pd.concat([X,y],axis=1)
+    #先组装起来，不然分组时分丢了
+    MSE=[]
+    theta=[]
+    shuffled = data.sample(frac=1)
+    result = np.array_split(shuffled, K)
+    # K-fold应该不用种子随机吧
+    for Alpha in alpha:
+
+        #重排一下，result是随机后由dataframe组成的list
+        MSE_i=[]
+        for i in range(K):
+            temp_result=list(result)
+            #临时拉一个出来进行删减
+            test_data=temp_result.pop(i)
+            #接下来把temp——result中的dataframe合并
+            train_data = pd.concat(temp_result, axis=0)
+            #接下来把traindata扔到函数里进行计算
+            theta_i=lasso(train_data,Alpha)
+            #返回训练获得的参数向量
+            test_data = test_data.values
+            #theta_i = np.ones(test_data[:,:-1].shape[1], dtype='float')#测试用
+            MSE_i.append(np.linalg.norm(np.dot(test_data[:,:-1],theta_i)-test_data[:,-1], ord=2, axis=None, keepdims=False))
+            #求MSE
+        theta.append(theta_i.tolist())
+        MSE.append(MSE_i)
+    log_alpha=list(map(lambda x:math.log10(x), alpha))
+    MSE=pd.DataFrame(MSE,index=log_alpha)
+    MSE.plot()
+    plt.xlabel('log(alpha)')
+    plt.ylabel('Mean square error')
+    plt.show()
+
+    print(theta)
+    plt.plot(log_alpha,theta, linewidth=2)
+    plt.show()
+    print(MSE)
